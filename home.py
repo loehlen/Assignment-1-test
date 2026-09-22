@@ -9,16 +9,245 @@ from openai import OpenAI
 
 load_dotenv()
 
-# Password
-if "password" not in st.session_state:
-    st.session_state.password = ""
-
-st.session_state.password = st.text_input(
-    label="password",
-    type="password"
+st.set_page_config(
+    page_title="United Brands v Commission — Chatbot",
+    page_icon="⚖️",
 )
 
-if st.session_state.password == os.environ["PASSWORD"]:
+ASSISTANT_AVATAR = "⚖️"
+USER_AVATAR = "🙋‍♀️"
+
+# Paragraph range for each chunk, in the same order your chunk files sort
+# alphabetically (chunk 1 first, chunk 8 last). Update this if your
+# filenames don't sort into that order.
+PARAGRAPH_RANGES = [
+    "§§ 10–11",
+    "§§ 12–13",
+    "§§ 14–18",
+    "§§ 19–21",
+    "§§ 22–27",
+    "§§ 28–30",
+    "§§ 31–33",
+    "§§ 34–35",
+]
+
+
+# --------------------------------------------------
+# Page styling (matches intro page)
+# --------------------------------------------------
+
+st.markdown(
+    """
+    <style>
+    /* Main buttons */
+    div.stButton > button {
+        border: 1px solid #E8CDD4;
+        border-radius: 8px;
+        background-color: white;
+        color: #30313D;
+    }
+
+    div.stButton > button:hover {
+        border-color: #D8B3BE;
+        background-color: #F5E6EA;
+        color: #30313D;
+    }
+
+    /* Primary button */
+    div.stButton > button[kind="primary"] {
+        border: 1px solid #9B6574;
+        background-color: #9B6574;
+        color: white;
+    }
+
+    div.stButton > button[kind="primary"]:hover {
+        border-color: #85526035;
+        background-color: #85525F;
+        color: white;
+    }
+
+
+    /* Expanders */
+    div[data-testid="stExpander"] {
+        border: 1px solid #E2D9DC;
+        border-radius: 8px;
+    }
+
+    /* Small paragraph references */
+    .paragraph-reference {
+        color: #8A7C81;
+        font-size: 0.85rem;
+        margin-top: 0.2rem;
+    }
+
+    /* Step progress indicator */
+    .step-indicator {
+        color: #9B6574;
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    /* Hook / teaser line */
+    .teaser {
+        font-size: 1.02rem;
+        color: #4A4A52;
+        margin-bottom: 0.6rem;
+    }
+
+    /* Conclusion / court-holding box */
+    .conclusion-box {
+        background-color: #F5E6EA;
+        border: 1px solid #E8CDD4;
+        border-left: 4px solid #9B6574;
+        border-radius: 8px;
+        padding: 1rem 1.2rem;
+        color: #30313D;
+        margin: 1rem 0;
+    }
+
+    .conclusion-box strong {
+        color: #9B6574;
+    }
+
+    /* Slim progress bar in the theme color */
+    div[data-testid="stProgress"] div[role="progressbar"] > div {
+        background-color: #9B6574;
+    }
+
+    /* Background/case-info card */
+    .case-card {
+        background-color: #FAF6F7;
+        border: 1px solid #E2D9DC;
+        border-radius: 8px;
+        padding: 1rem 1.2rem;
+        margin: 0.8rem 0 1.2rem 0;
+    }
+
+    .case-card .case-row {
+        display: flex;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .case-card .case-label {
+        color: #9B6574;
+        font-weight: 600;
+        min-width: 110px;
+    }
+
+    /* Retrieved-chunk cards inside the chatbot's "sources" expander */
+    .chunk-card {
+        background-color: #FAF6F7;
+        border: 1px solid #E2D9DC;
+        border-left: 3px solid #9B6574;
+        border-radius: 8px;
+        padding: 0.7rem 1rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .chunk-card .chunk-title {
+        color: #9B6574;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 0.2rem;
+    }
+
+    /* --------------------------------------------------
+       Chat input & password field: exactly ONE pink ring,
+       drawn only by the outer container. Every element
+       inside is forced to have no border/shadow/outline of
+       its own, in every state, so rings never stack.
+       -------------------------------------------------- */
+
+    div[data-testid="stChatInput"],
+    div[data-testid="stTextInput"] > div {
+        border-color: #E2D9DC !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stChatInput"]:hover,
+    div[data-testid="stChatInput"]:focus-within,
+    div[data-testid="stTextInput"] > div:hover,
+    div[data-testid="stTextInput"] > div:focus-within {
+        border-color: #9B6574 !important;
+        box-shadow: 0 0 0 1px #9B6574 !important;
+    }
+
+    div[data-testid="stChatInput"] *,
+    div[data-testid="stTextInput"] * {
+        border-color: transparent !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+
+    div[data-testid="stChatInput"] textarea,
+    div[data-testid="stTextInput"] input {
+        caret-color: #9B6574 !important;
+    }
+
+    /* Chat input submit (arrow) button keeps its own solid fill,
+       not the transparent-border rule above */
+    div[data-testid="stChatInput"] button {
+        background-color: #9B6574 !important;
+        border-color: #9B6574 !important;
+        color: white !important;
+    }
+
+    div[data-testid="stChatInput"] button:hover,
+    div[data-testid="stChatInput"] button:focus,
+    div[data-testid="stChatInput"] button:active {
+        background-color: #85525F !important;
+        border-color: #85525F !important;
+        color: white !important;
+    }
+
+    div[data-testid="stChatInput"] button svg {
+        fill: white !important;
+        color: white !important;
+    }
+
+    /* Justified ("Blocksatz") body text throughout the app */
+    [data-testid="stChatMessageContent"] p,
+    [data-testid="stMarkdownContainer"] p,
+    .case-card,
+    .teaser,
+    .conclusion-box {
+        text-align: justify;
+        text-justify: inter-word;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# --------------------------------------------------
+# Password
+# --------------------------------------------------
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+
+    password_input = st.text_input(
+        label="password",
+        type="password"
+    )
+
+    if password_input:
+
+        if password_input == os.environ["PASSWORD"]:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect password.")
+
+if st.session_state.authenticated:
 
     os.environ["CHROMA_OPENAI_API_KEY"] = os.environ["OPENAI_API_KEY"]
 
@@ -53,7 +282,7 @@ if st.session_state.password == os.environ["PASSWORD"]:
 
             documents, metadatas, ids = [], [], []
 
-            for file in files:
+            for index, file in enumerate(files):
 
                 text = file.read_text(
                     encoding="utf-8",
@@ -64,9 +293,16 @@ if st.session_state.password == os.environ["PASSWORD"]:
 
                     documents.append(text)
 
+                    paragraphs = (
+                        PARAGRAPH_RANGES[index]
+                        if index < len(PARAGRAPH_RANGES)
+                        else ""
+                    )
+
                     metadatas.append({
                         "source": CASE_NAME,
-                        "filename": file.name
+                        "filename": file.name,
+                        "paragraphs": paragraphs
                     })
 
                     ids.append(
@@ -89,16 +325,31 @@ if st.session_state.password == os.environ["PASSWORD"]:
     collection = get_collection()
 
 
-    # --- Chatbot UI ---
+    # --------------------------------------------------
+    # Header (matches intro page's title/subheader/case-card)
+    # --------------------------------------------------
 
-    st.title(
-        "United Brands v Commission — Relevant Market Chatbot"
+    st.title("United Brands v Commission")
+    st.subheader("Relevant Product Market Chatbot")
+
+    st.markdown(
+        f"""
+        <div class="case-card">
+            <div class="case-row"><span class="case-label">Case</span><span>27/76, United Brands Co. v Commission (14 February 1978)</span></div>
+            <div class="case-row"><span class="case-label">Covers</span><span>Chapter I, Section 1 — "The relevant market" (paragraphs 10–35)</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
-    st.caption(
-        "Ask questions about how the Court determined the relevant "
-        "product market. The chatbot covers paragraphs 10–35 only."
+    st.markdown(
+        '<div class="teaser">Ask questions about how the Court determined '
+        'the relevant product market. The chatbot covers paragraphs 10–35 '
+        'only.</div>',
+        unsafe_allow_html=True
     )
+
+    st.divider()
 
 
     # --- Conversation history ---
@@ -112,9 +363,37 @@ if st.session_state.password == os.environ["PASSWORD"]:
         st.rerun()
 
 
+    def render_sources(sources):
+        """Render the 'Retrieved chunks used for this answer' expander
+        for a given list of {"paragraphs": ..., "doc": ...} sources."""
+
+        with st.expander("Retrieved chunks used for this answer"):
+
+            for rank, source in enumerate(sources, start=1):
+
+                paragraphs = source.get("paragraphs") or "unspecified paragraphs"
+
+                st.markdown(
+                    f"""
+                    <div class="chunk-card">
+                        <div class="chunk-title">Match {rank} · Paragraphs {paragraphs}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                st.caption(source.get("doc", ""))
+
+
     for message in st.session_state.messages:
 
-        with st.chat_message(message["role"]):
+        avatar = USER_AVATAR if message["role"] == "user" else ASSISTANT_AVATAR
+
+        # Replay the retrieved-chunks expander for past assistant answers too
+        if message["role"] == "assistant" and message.get("sources"):
+            render_sources(message["sources"])
+
+        with st.chat_message(message["role"], avatar=avatar):
             st.write(message["content"])
 
 
@@ -139,64 +418,95 @@ if st.session_state.password == os.environ["PASSWORD"]:
             }
         )
 
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar=USER_AVATAR):
             st.write(query)
 
 
         # Retrieve relevant chunks
-        results = collection.query(
-            query_texts=[query],
-            n_results=n_results
-        )
+        try:
 
+            results = collection.query(
+                query_texts=[query],
+                n_results=n_results
+            )
 
-        # Show retrieved chunks
-        with st.expander("Retrieved chunks used for this answer"):
+        except Exception:
 
-            for doc, meta, dist in zip(
-                results["documents"][0],
-                results["metadatas"][0],
-                results["distances"][0]
-            ):
-
-                st.markdown(
-                    f"**{meta.get('filename')}** "
-                    f"· distance: {dist:.3f}"
+            with st.chat_message("assistant", avatar=ASSISTANT_AVATAR):
+                st.error(
+                    "Something went wrong retrieving relevant passages. "
+                    "Please try asking again."
                 )
 
-                st.caption(doc)
+            st.stop()
 
 
-        # Use retrieved chunks as context for a RAG response
+        # Build a plain list of sources so it can be displayed now AND
+        # stored with the assistant's message for later replay
+        sources = [
+            {
+                "paragraphs": meta.get("paragraphs"),
+                "doc": doc
+            }
+            for doc, meta in zip(
+                results["documents"][0],
+                results["metadatas"][0],
+            )
+        ]
+
+        # Show retrieved chunks (styled like the intro's case-card)
+        render_sources(sources)
+
+
+        # Use retrieved chunks as context for a RAG response, each one
+        # labelled with its paragraph range so the model can cite it
         context = "\n\n---\n\n".join(
-            results["documents"][0]
+            f"[Paragraphs {source['paragraphs'] or 'unspecified'}]\n{source['doc']}"
+            for source in sources
         )
 
 
         # System instructions
         system_prompt = f"""
-You are a legal research assistant answering questions about how the
-Court of Justice determined the relevant PRODUCT market in {CASE_NAME}.
+You are a legal research assistant on the relevant PRODUCT market in
+{CASE_NAME} (paragraphs 10–35 only; not geographic market or other parts
+of the case). Use only the retrieved context below — no outside knowledge.
 
-Use only the retrieved context provided below.
+If the user's message isn't a clear, answerable question (too short,
+ambiguous, a single word/number, etc.), don't guess what they meant —
+ask them to clarify instead of answering. If the context lacks the
+answer, say so; never make anything up.
 
-The available material covers paragraphs 10–35 of the judgment and
-concerns the relevant product market. It does not cover the geographic
-market or other parts of the case.
+Distinguish clearly between the applicant's arguments, the Commission's
+arguments, and the Court's own reasoning/findings.
 
-If the context does not contain the answer, say so. Do not make anything up.
+Each chunk is labelled with its paragraph range, e.g. "[Paragraphs
+§§ 22–27]". Cite that range right after ANY sentence drawing on it —
+including the opening sentence, and including when you're merely
+paraphrasing/characterising a party's argument or the Court's holding,
+not just stating a fact. Cite each chunk used, at the point you use it.
 
-Be precise about who is making an argument. Distinguish between:
-- the applicant's arguments,
-- the Commission's arguments, and
-- the Court's own reasoning and findings.
-
-Do not use outside knowledge.
+Example:
+Q: "How did the Court respond to the applicant's argument that bananas
+are interchangeable with other fresh fruit?"
+A: "The applicant argued that bananas are reasonably interchangeable
+with other fresh fruit, pointing to shared shops, shelves and prices
+(§§ 12–13). The Court rejected this, holding that bananas have specific
+characteristics — such as year-round availability — that limit their
+interchangeability with other fruit to only a limited extent (§§ 22–27)."
+(Note the opening sentence is cited too — follow this pattern always.)
 """
 
 
-        # Keep recent conversation history
-        history = st.session_state.messages[-6:-1]
+        # Keep recent conversation history — strip any extra keys (like
+        # "sources") so only role/content is sent to the API
+        history = [
+            {
+                "role": message["role"],
+                "content": message["content"]
+            }
+            for message in st.session_state.messages[-6:-1]
+        ]
 
 
         messages = [
@@ -225,25 +535,39 @@ Question:
 
 
         # Generate RAG response
-        with st.chat_message("assistant"):
+        with st.chat_message("assistant", avatar=ASSISTANT_AVATAR):
 
-            with st.spinner("Generating response..."):
+            try:
 
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=messages,
-                    temperature=0,
+                with st.spinner("Generating response..."):
+
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=messages,
+                        temperature=0,
+                    )
+
+                answer = response.choices[0].message.content
+
+                st.write(answer)
+
+            except Exception:
+
+                st.error(
+                    "Something went wrong generating a response. "
+                    "Please try again in a moment."
                 )
 
-            answer = response.choices[0].message.content
-
-            st.write(answer)
+                st.stop()
 
 
-        # Save assistant response
+        # Save assistant response, along with the sources used, so the
+        # "Retrieved chunks" expander can be replayed for this answer
+        # even after later questions are asked
         st.session_state.messages.append(
             {
                 "role": "assistant",
-                "content": answer
+                "content": answer,
+                "sources": sources
             }
         )

@@ -35,6 +35,7 @@ st.markdown(
         color: white;
     }
 
+
     /* Expanders */
     div[data-testid="stExpander"] {
         border: 1px solid #E2D9DC;
@@ -84,6 +85,28 @@ st.markdown(
     div[data-testid="stProgress"] div[role="progressbar"] > div {
         background-color: #9B6574;
     }
+
+    /* Background/case-info card on the overview step */
+    .case-card {
+        background-color: #FAF6F7;
+        border: 1px solid #E2D9DC;
+        border-radius: 8px;
+        padding: 1rem 1.2rem;
+        margin: 0.8rem 0 1.2rem 0;
+    }
+
+    .case-card .case-row {
+        display: flex;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .case-card .case-label {
+        color: #9B6574;
+        font-weight: 600;
+        min-width: 110px;
+    }
     </style>
     """,
     unsafe_allow_html=True
@@ -108,6 +131,10 @@ def go_back():
     st.session_state.intro_step = max(st.session_state.intro_step - 1, 1)
 
 
+def skip_to_chatbot():
+    st.switch_page("home.py")
+
+
 # --------------------------------------------------
 # Title (shown throughout)
 # --------------------------------------------------
@@ -115,24 +142,12 @@ def go_back():
 st.title("United Brands v Commission")
 st.subheader("Understanding the Relevant Product Market")
 
-# Intro copy only shows on the first step, before the walkthrough begins
+# Hook copy only shows on the very first step, before the walkthrough begins
 if st.session_state.intro_step == 1:
     st.write(
         """
         Was Chiquita's banana business operating in a market of its own —
         or just one player among many in the broader fresh fruit market?
-        """
-    )
-
-    st.write(
-        """
-        Before competition law can assess a company's market power, it first
-        has to answer that kind of question: **what market is the company
-        actually competing in?** *United Brands v Commission* (Case 27/76)
-        shows the Court working through exactly this problem. While the
-        judgment covers a broader set of issues, this application focuses
-        specifically on the Court's analysis of the relevant product market
-        in paragraphs 10–35.
         """
     )
 
@@ -142,40 +157,46 @@ st.markdown(
     f'<div class="step-indicator">Step {st.session_state.intro_step} of {TOTAL_STEPS}</div>',
     unsafe_allow_html=True
 )
-st.progress(st.session_state.intro_step / TOTAL_STEPS)
+progress_col, skip_col = st.columns([5, 1])
+
+with progress_col:
+    st.progress(st.session_state.intro_step / TOTAL_STEPS)
+
+with skip_col:
+    if st.button("Skip intro →", key="skip_intro", use_container_width=True):
+        skip_to_chatbot()
 
 
 # --------------------------------------------------
-# Step 1 — The relevant market
+# Step 1 — Background: about this judgment
 # --------------------------------------------------
 
 if st.session_state.intro_step == 1:
 
-    st.header("The relevant market")
+    st.header("About this case")
 
-    st.markdown(
-        '<div class="teaser">Before asking whether a company is dominant, '
-        'the law needs a baseline: dominant over <em>what</em>, exactly?</div>',
-        unsafe_allow_html=True
+    st.write(
+        """
+        Quick context before the market-definition analysis: United Brands
+        Company ("UBC"), the world's largest banana group, sold bananas
+        under the "Chiquita" brand. In 1975 the Commission decided that UBC
+        had abused a dominant position, and UBC brought an action before
+        the Court of Justice seeking annulment of that decision. Before the
+        Court could rule on whether any abuse had occurred, it first had to
+        determine whether UBC held a dominant position at all — which meant
+        defining the relevant market first.
+        """
     )
 
-    with st.expander("Why do I need the relevant market?"):
-
-        st.write(
-            """
-            In order to determine whether a company holds a dominant position,
-            the relevant market first has to be defined.
-
-            The market must be considered from both the product and geographic
-            points of view. This application focuses on the relevant product
-            market.
-            """
-        )
-
-        st.markdown(
-            '<div class="paragraph-reference">Paragraphs 10–11</div>',
-            unsafe_allow_html=True
-        )
+    st.markdown(
+        """
+        <div class="case-card">
+            <div class="case-row"><span class="case-label">Case</span><span>27/76, United Brands Co. v Commission (14 February 1978)</span></div>
+            <div class="case-row"><span class="case-label">This excerpt</span><span>Chapter I, Section 1 — "The relevant market" (paragraphs 10–35)</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 # --------------------------------------------------
@@ -289,7 +310,17 @@ elif st.session_state.intro_step == 4:
 
     st.header("The Court's assessment")
 
-    st.write("How did the Court work through these competing arguments?")
+    st.markdown(
+        """
+        <div class="conclusion-box">
+        <strong>Conclusion:</strong> the Court held that the banana market was
+        sufficiently distinct from the other fresh fruit markets.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.write("How did the Court reach this conclusion?")
 
     with st.expander("The Court's market-definition approach"):
 
@@ -359,16 +390,6 @@ elif st.session_state.intro_step == 4:
             unsafe_allow_html=True
         )
 
-    st.markdown(
-        """
-        <div class="conclusion-box">
-        <strong>Conclusion:</strong> the Court held that the banana market was
-        sufficiently distinct from the other fresh fruit markets.
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
 
 # --------------------------------------------------
 # Step 5 — Explore the judgment
@@ -386,6 +407,67 @@ elif st.session_state.intro_step == 5:
         paragraphs 10–35 of the judgment.
         """
     )
+
+    with st.expander("Read the full introduction in one place"):
+
+        st.markdown("**About this case**")
+        st.markdown(
+            """
+            <div class="case-card">
+                <div class="case-row"><span class="case-label">Case</span><span>27/76, United Brands Co. v Commission (14 February 1978)</span></div>
+                <div class="case-row"><span class="case-label">This excerpt</span><span>Chapter I, Section 1 — "The relevant market" (paragraphs 10–35)</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        st.markdown("**The relevant market**")
+        st.write(
+            """
+            In order to determine whether a company holds a dominant position,
+            the relevant market first has to be defined, from both the product
+            and geographic points of view. *(Paragraphs 10–11)*
+            """
+        )
+
+        st.markdown("**The market-definition question**")
+        st.write(
+            """
+            Did bananas form part of the broader market for fresh fruit, or
+            did bananas constitute a sufficiently distinct market of their
+            own? The Court approached this by examining whether bananas were
+            reasonably interchangeable with other fresh fruit. *(Paragraph 12)*
+            """
+        )
+
+        st.markdown("**The opposing views**")
+        st.write(
+            """
+            *Applicant:* bananas were reasonably interchangeable with other
+            fresh fruit — sold in the same shops, at comparable prices,
+            satisfying the same needs. *(Paragraphs 12–13)*
+
+            *Commission:* demand for bananas was distinct, given the
+            particular qualities of bananas; other fruit's effect on banana
+            prices and availability was ineffective, brief or spasmodic.
+            *(Paragraphs 19–21)*
+            """
+        )
+
+        st.markdown("**The Court's assessment**")
+        st.write(
+            """
+            The Court examined interchangeability and distinctness
+            *(Paragraphs 22–27)*, seasonal substitutability
+            *(Paragraphs 28–30)*, and the banana's particular
+            characteristics and their effect on consumer choice
+            *(Paragraphs 31–33)*. It concluded that a very large number of
+            consumers were not noticeably or appreciably induced to switch
+            from bananas to other fresh fruit, so the banana market was
+            sufficiently distinct from the other fresh fruit markets.
+            *(Paragraphs 34–35)*
+            """
+        )
 
 
 # --------------------------------------------------
